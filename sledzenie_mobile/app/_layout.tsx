@@ -14,6 +14,11 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
+  // Start background tracking once
+  useEffect(() => {
+    startBackgroundUpdates();
+  }, []);
+
   if (!loaded) {
     // Async font loading only occurs in development.
     return null;
@@ -28,11 +33,4 @@ export default function RootLayout() {
       <StatusBar style="auto" />
     </ThemeProvider>
   );
-}
-export default function Layout() {
-  useEffect(() => {
-    startBackgroundUpdates();
-  }, []);
-
-  return <Stack />;
 }
