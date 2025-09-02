@@ -3,6 +3,8 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import { useEffect } from 'react';
+import { startBackgroundUpdates } from '../src/background';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -26,4 +28,11 @@ export default function RootLayout() {
       <StatusBar style="auto" />
     </ThemeProvider>
   );
+}
+export default function Layout() {
+  useEffect(() => {
+    startBackgroundUpdates();
+  }, []);
+
+  return <Stack />;
 }
