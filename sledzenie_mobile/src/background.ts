@@ -16,16 +16,15 @@ async function flushQueue() {
   const batch = JSON.parse(raw);
   if (!batch.length) return;
 
-  try {
-    await fetch('https://your-vercel-app.vercel.app/api/location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ points: batch }),
-    });
-    await AsyncStorage.removeItem(QUEUE_KEY);
-  } catch {
-    // stay queued if offline
-  }
+try {
+  await fetch('https://sledzenie-psi.vercel.app/api/track-location', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ points: batch }),
+  });
+  await AsyncStorage.removeItem(QUEUE_KEY);
+} catch (err) {
+  console.error('Failed to send location batch:', err);
 }
 
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
