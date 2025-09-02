@@ -16,17 +16,20 @@ async function flushQueue() {
   const batch = JSON.parse(raw);
   if (!batch.length) return;
 
-try {
-  await fetch('https://sledzenie-psi.vercel.app/api/track-location', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ points: batch }),
-  });
-  await AsyncStorage.removeItem(QUEUE_KEY);
-} catch (err) {
-  console.error('Failed to send location batch:', err);
+  try {
+    await fetch('https://sledzenie-psi.vercel.app/api/track-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points: batch }),
+    });
+    await AsyncStorage.removeItem(QUEUE_KEY);
+  } catch (err) {
+    console.error('Failed to send location batch:', err);
+    // leave batch in AsyncStorage for retry
+  }
 }
 
+// TaskManager should be defined at top level, not inside flushQueue
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) return;
   const { locations } = data as { locations: Location.LocationObject[] };
