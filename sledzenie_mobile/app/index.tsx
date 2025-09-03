@@ -1,21 +1,24 @@
+// app/Home.tsx
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import 'react-native-get-random-values'; // Needed for UUID
+import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import { useNavigation } from '@react-navigation/native';
 
 export default function Home() {
+  const navigation = useNavigation();
   const [statusText, setStatusText] = useState('Nieaktywne');
   const [isTracking, setIsTracking] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userIdInitError, setUserIdInitError] = useState<string | null>(null);
 
-  const watchId = useRef<string | null>(null);
-
+  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const apiUrl = 'https://sledzenie-psi.vercel.app/api/track-location';
 
-  // Generate or retrieve userId from AsyncStorage
+  // Generate or retrieve userId
   useEffect(() => {
     (async () => {
       try {
@@ -27,9 +30,9 @@ export default function Home() {
         setUserId(storedUserId);
       } catch (error: any) {
         console.error("Error generating or storing userId:", error);
-        let errorMessage = error?.message || 'Nie można wygenerować lub zapisać ID użytkownika.';
-        setUserIdInitError(`Błąd inicjalizacji ID użytkownika: ${errorMessage}. Śledzenie niemożliwe.`);
-        Alert.alert('Krytyczny błąd', errorMessage);
+        const message = error?.message || 'Nie można wygenerować lub zapisać ID użytkownika.';
+        setUserIdInitError(`Błąd inicjalizacji ID użytkownika: ${message}. Śledzenie niemożliwe.`);
+        Alert.alert('Krytyczny błąd', message);
       }
     })();
   }, []);
@@ -75,7 +78,7 @@ export default function Home() {
       return;
     }
 
-    watchId.current = await Location.watchPositionAsync(
+    locationSubscription.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.High,
         timeInterval: 5000,
@@ -86,26 +89,27 @@ export default function Home() {
         setStatusText(`Twoja lokalizacja: ${latitude}, ${longitude}`);
         await sendLocationToServer(userId, latitude, longitude, true);
       }
-    ).then(sub => {
-      // save subscription id
-      return String(Math.random()); // dummy for cleanup
-    });
+    );
 
     setIsTracking(true);
     await sendLocationToServer(userId, 0, 0, true); // initial status
   };
 
   const stopTracking = async () => {
-    if (watchId.current) {
-      // Expo Location returns a subscription, not numeric id
-      // In a real app, you'd store the subscription and call .remove()
-      watchId.current = null;
+    if (locationSubscription.current) {
+      locationSubscription.current.remove(); // Proper cleanup
+      locationSubscription.current = null;
     }
     setIsTracking(false);
     setStatusText("Nieaktywne");
+
     if (userId) {
       await sendLocationToServer(userId, 0, 0, false);
     }
+  };
+
+  const goToDashboard = () => {
+    navigation.navigate('Dashboard' as never); // Navigate to Dashboard
   };
 
   return (
@@ -138,6 +142,13 @@ export default function Home() {
             <Text style={styles.buttonText}>Zakończ śledzenie</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          onPress={goToDashboard}
+          style={[styles.button, { backgroundColor: '#10b981', marginTop: 10 }]}
+        >
+          <Text style={styles.buttonText}>Przejdź do Dashboard</Text>
+        </TouchableOpacity>
 
         <View style={styles.statusBox}>
           <Text style={styles.statusText}>{statusText}</Text>
