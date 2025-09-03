@@ -22,8 +22,8 @@ export default function LoginScreen() {
     if (username === '12345678' && password === 'haslo') {
       await AsyncStorage.setItem('auth', 'true'); // save "session"
 
-      // Navigate to Dashboard
-      navigation.navigate('Dashboard' as never); // adjust route name to match your navigator
+      // Navigate to TrackingScreen instead of directly Dashboard
+      navigation.navigate('Tracking' as never); // update route name to your navigator
     } else {
       setError('Nieprawidłowy login lub hasło');
     }
@@ -108,3 +108,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
