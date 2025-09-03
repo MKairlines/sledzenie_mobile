@@ -1,12 +1,10 @@
-'use client';
+// app/Dashboard.tsx (React Native version)
 
 import React, { useEffect, useState } from 'react';
-import 'leaflet/dist/leaflet.css';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 
-// ✅ Import only types (safe for Next.js)
-import type { MapContainerProps, TileLayerProps, MarkerProps, PopupProps } from 'react-leaflet';
-
-// Interfejs do opisu lokalizacji
+// Interfejs lokalizacji
 interface TrackedLocation {
   userId: string;
   latitude: number;
@@ -15,174 +13,143 @@ interface TrackedLocation {
   isTracking: boolean;
 }
 
-// Typy komponentów mapy (żadnego any!)
-type MapComponents = {
-  MapContainer: React.ComponentType<MapContainerProps>;
-  TileLayer: React.ComponentType<TileLayerProps>;
-  Marker: React.ComponentType<MarkerProps>;
-  Popup: React.ComponentType<PopupProps>;
-} | null;
-
-export default function DashboardPage() {
+export default function DashboardScreen() {
   const [activeLocations, setActiveLocations] = useState<TrackedLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Stan do dynamicznego ładowania komponentów mapy (tylko klient)
-  const [mapComponents, setMapComponents] = useState<MapComponents>(null);
-
-  const apiUrl = '/api/track-location';
+  const apiUrl = 'https://sledzenie-psi.vercel.app/api/track-location'; // pełny URL API
   const POLLING_INTERVAL_MS = 3000;
 
   const fetchLocations = async () => {
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error((errorData as { message?: string }).message || 'Failed to fetch locations');
+        throw new Error('Błąd pobierania lokalizacji z backendu');
       }
       const data: TrackedLocation[] = await response.json();
       setActiveLocations(data);
     } catch (err: unknown) {
       console.error('Error fetching locations:', err);
-      let errorMessage = 'Nieznany błąd podczas pobierania lokalizacji.';
+      let errorMessage = 'Nieznany błąd.';
       if (err instanceof Error) errorMessage = err.message;
-      setError(`Błąd: ${errorMessage}`);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadMapComponents = async () => {
-      try {
-        const leaflet = await import('leaflet');
-        const rl = await import('react-leaflet');
-
-        // ✅ Fix ikon Leaflet w Next.js
-        if (typeof window !== 'undefined') {
-          leaflet.Icon.Default.mergeOptions({
-            iconRetinaUrl: '/leaflet/marker-icon-2x.png',
-            iconUrl: '/leaflet/marker-icon.png',
-            shadowUrl: '/leaflet/marker-shadow.png',
-          });
-        }
-
-        setMapComponents({
-          MapContainer: rl.MapContainer,
-          TileLayer: rl.TileLayer,
-          Marker: rl.Marker,
-          Popup: rl.Popup,
-        });
-      } catch (err) {
-        console.error('Błąd ładowania komponentów mapy:', err);
-      }
-    };
-
-    loadMapComponents();
     fetchLocations();
-
     const intervalId = setInterval(fetchLocations, POLLING_INTERVAL_MS);
     return () => clearInterval(intervalId);
   }, []);
 
   if (loading) {
     return (
-      <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
-        <p className="text-xl text-blue-500">Ładowanie dashboardu...</p>
-      </main>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Ładowanie dashboardu...</Text>
+      </View>
     );
   }
 
   if (error) {
     return (
-      <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
-        <p className="text-xl text-red-500">{error}</p>
-      </main>
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
     );
   }
 
-  const { MapContainer, TileLayer, Marker, Popup } = mapComponents ?? {};
+  const initialRegion = {
+    latitude: activeLocations.length > 0 ? activeLocations[0].latitude : 52.2297,
+    longitude: activeLocations.length > 0 ? activeLocations[0].longitude : 21.0122,
+    latitudeDelta: 5,
+    longitudeDelta: 5,
+  };
 
   return (
-    <main className="flex flex-col items-center p-6 bg-gray-100 min-h-screen">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-7xl mt-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
-          Dashboard śledzenia lokalizacji
-        </h2>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Dashboard śledzenia lokalizacji</Text>
 
-        {activeLocations.length === 0 ? (
-          <p className="text-gray-600 text-center text-lg">
-            Brak aktywnych lokalizacji do wyświetlenia.
-          </p>
-        ) : (
-          <div className="flex flex-col md:flex-row md:space-x-6 space-y-6 md:space-y-0">
-            {/* Sekcja Mapy */}
-            <div className="md:w-2/3 w-full h-[600px] rounded-lg overflow-hidden shadow-md">
-              {mapComponents && MapContainer && TileLayer && Marker && Popup ? (
-                <MapContainer
-                  center={
-                    activeLocations.length > 0
-                      ? [activeLocations[0].latitude, activeLocations[0].longitude]
-                      : [52.2297, 21.0122]
-                  }
-                  zoom={6}
-                  scrollWheelZoom={true}
-                  className="h-full w-full"
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+      {/* Sekcja mapy */}
+      <MapView style={styles.map} initialRegion={initialRegion}>
+        {activeLocations.map((loc) => (
+          <Marker
+            key={loc.userId}
+            coordinate={{ latitude: loc.latitude, longitude: loc.longitude }}
+            title={`Użytkownik: ${loc.userId}`}
+            description={`Ostatnia aktualizacja: ${new Date(loc.timestamp).toLocaleString()}`}
+          />
+        ))}
+      </MapView>
 
-                  {activeLocations.map((loc) => (
-                    <Marker key={loc.userId} position={[loc.latitude, loc.longitude]}>
-                      <Popup>
-                        <div className="font-semibold text-gray-800">Użytkownik:</div>
-                        <div className="font-mono text-sm break-all">{loc.userId}</div>
-                        <div className="mt-2 text-xs text-gray-600">
-                          Ostatnia aktualizacja: <br />{' '}
-                          {new Date(loc.timestamp).toLocaleString()}
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full">Ładowanie mapy...</div>
-              )}
-            </div>
-
-            {/* Sekcja Tabeli */}
-            <div className="md:w-1/3 w-full overflow-x-auto">
-              <table className="min-w-full bg-white rounded-lg shadow-md">
-                <thead className="bg-gray-200">
-                  <tr>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 rounded-tl-lg">
-                      ID Użytkownika
-                    </th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
-                      Szerokość
-                    </th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">
-                      Długość
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeLocations.map((loc) => (
-                    <tr key={loc.userId} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-800 break-all">{loc.userId}</td>
-                      <td className="py-3 px-4 text-sm text-gray-800">{loc.latitude.toFixed(6)}</td>
-                      <td className="py-3 px-4 text-sm text-gray-800">{loc.longitude.toFixed(6)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {/* Sekcja listy */}
+      <FlatList
+        style={styles.list}
+        data={activeLocations}
+        keyExtractor={(item) => item.userId}
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            <Text style={styles.userId}>{item.userId}</Text>
+            <Text style={styles.coords}>
+              {item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}
+            </Text>
+          </View>
         )}
-      </div>
-    </main>
+      />
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginVertical: 12,
+    color: '#1f2937',
+  },
+  map: {
+    flex: 1,
+    minHeight: 300,
+  },
+  list: {
+    flex: 1,
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+  row: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  userId: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#374151',
+  },
+  coords: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#2563eb',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#dc2626',
+  },
+});
