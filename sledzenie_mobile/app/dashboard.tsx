@@ -1,8 +1,9 @@
-// app/Dashboard.tsx (React Native version)
+// app/Dashboard.tsx
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, TouchableOpacity } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import { useNavigation } from '@react-navigation/native';
 
 // Interfejs lokalizacji
 interface TrackedLocation {
@@ -14,11 +15,12 @@ interface TrackedLocation {
 }
 
 export default function DashboardScreen() {
+  const navigation = useNavigation();
   const [activeLocations, setActiveLocations] = useState<TrackedLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiUrl = 'https://sledzenie-psi.vercel.app/api/track-location'; // pełny URL API
+  const apiUrl = 'https://sledzenie-psi.vercel.app/api/track-location';
   const POLLING_INTERVAL_MS = 3000;
 
   const fetchLocations = async () => {
@@ -69,11 +71,15 @@ export default function DashboardScreen() {
     longitudeDelta: 5,
   };
 
+  const goBackToHome = () => {
+    navigation.navigate('Home' as never); // Navigate back to Home screen
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Dashboard śledzenia lokalizacji</Text>
 
-      {/* Sekcja mapy */}
+      {/* Map section */}
       <MapView style={styles.map} initialRegion={initialRegion}>
         {activeLocations.map((loc) => (
           <Marker
@@ -85,7 +91,7 @@ export default function DashboardScreen() {
         ))}
       </MapView>
 
-      {/* Sekcja listy */}
+      {/* List section */}
       <FlatList
         style={styles.list}
         data={activeLocations}
@@ -99,6 +105,11 @@ export default function DashboardScreen() {
           </View>
         )}
       />
+
+      {/* Go back button */}
+      <TouchableOpacity onPress={goBackToHome} style={styles.backButton}>
+        <Text style={styles.backButtonText}>Powrót do śledzenia</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -151,5 +162,17 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#dc2626',
+  },
+  backButton: {
+    backgroundColor: '#2563eb',
+    padding: 14,
+    margin: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
